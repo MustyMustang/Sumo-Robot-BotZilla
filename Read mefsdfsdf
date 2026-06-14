@@ -1,0 +1,369 @@
+# Sumo Robot: BotZilla
+
+**Team Winners**
+Hamida Firoz • Nila Mathivannan • Chloe Chow
+
+---
+
+# What Does the Robot Do and How Does It Compete?
+
+BotZilla is designed to tip opposing robots using a servo-powered 3D-printed vertical claw capable of lifting approximately 5 kg. The robot uses front and rear surface detectors to identify the arena boundary and prevent driving out of the ring.
+
+The robot also uses an HC-SR04 ultrasonic sensor to detect opponents. When an opponent is detected, the robot advances toward it and attempts to push or flip it using the claw mechanism.
+
+These features allow the robot to:
+
+* Stay inside the arena
+* Detect and track opponents
+* Attack when an opponent is within range
+* Recover from dangerous positions near the boundary
+
+## Extensions Beyond the Guided Build
+
+* 3D-printed vertical claw powered by a high-torque servo
+* Front and rear edge-detection sensors
+* HC-SR04 ultrasonic distance sensor
+* Custom movement logic:
+
+  * Front sensor detects edge → reverse and turn left
+  * Rear sensor detects edge → move forward
+* Enhanced opponent detection and pursuit behavior
+
+---
+
+# Design
+
+## What the Robot Needs to Do
+
+The robot must:
+
+1. Tip opposing robots using a servo-powered claw.
+2. Detect the arena boundary using front and rear sensors.
+3. Reverse and turn when the front sensor detects the edge.
+4. Move forward when the rear sensor detects the edge.
+5. Drive forward, backward, left, and right reliably.
+6. Detect opponents using an HC-SR04 ultrasonic sensor.
+7. Maintain traction and stable movement during matches.
+
+---
+
+## Success Criteria
+
+| Requirement                             | How We Tested It                                                                                                           | Pass Condition                                       |
+| --------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
+| Detect boundary and react appropriately | Ran robot over a white surface with a black boundary line. Tested from front, back, and angled approaches (5 trials each). | Robot correctly responds every time.                 |
+| Motors operate correctly                | Tested wheel movement and direction across 5 trials.                                                                       | Both wheels spin in the correct direction and speed. |
+| Front sensor avoidance                  | Placed boundary directly in front of robot and ran 5 trials.                                                               | Robot reverses and turns left within 1 second.       |
+| Rear sensor avoidance                   | Backed robot toward boundary in 5 trials.                                                                                  | Robot moves forward every time.                      |
+| Servo lifts claw mechanism              | Tested with loads of 1 kg, 3 kg, and 5 kg. Three attempts at each weight.                                                  | Servo lifts 5 kg without stalling or dropping.       |
+| Ultrasonic distance sensing             | Measured objects at 10 cm, 20 cm, 30 cm, and 50 cm. Five readings per distance.                                            | Readings remain within ±2 cm of actual distance.     |
+
+---
+
+## System Architecture
+
+### State Machine Diagram
+
+![State Machine Diagram](images/state-machine.png)
+
+**Caption:** State machine showing robot behaviors and sensor-triggered transitions.
+
+> Original diagram created in draw.io and exported at 200% zoom.
+
+---
+
+## Circuit Design
+
+![Circuit Schematic](images/circuit-schematic.png)
+
+**Caption:** Complete circuit schematic showing GPIO assignments, power rails, resistor values, motors, sensors, and servo connections.
+
+---
+
+## Physical Layout
+
+![Physical Layout](images/physical-layout.png)
+
+**Caption:** Top-down chassis layout showing component placement and cable routing paths.
+
+### Design Decisions
+
+* Sensors positioned at front and rear for reliable edge detection.
+* Servo mounted centrally to maintain balance.
+* Battery placement optimized to keep the center of mass low.
+* Cable routing minimized to reduce interference and tangling.
+
+---
+
+# Build
+
+## Chassis
+
+We began by creating approximately five different robot concepts before selecting the final design.
+
+### Design Evolution
+
+#### Prototype 1: Vertical Claw
+
+Our first concept used a claw that moved vertically to push opponents out of the arena. While functional in theory, the mechanism was overly complicated.
+
+#### Prototype 2: Bulldozer Design
+
+Our second design used a bulldozer-style front attachment to push opponents. Although simpler and effective, we felt it did not fully utilize the capabilities of a three-person team.
+
+#### Final Design: Flipping Arm
+
+The final design combines aggressive pushing with a servo-powered flipping arm. We originally considered a pulley system but switched to a servo motor because it:
+
+* Reduced weight
+* Simplified construction
+* Provided sufficient lifting force
+* Improved reliability
+
+### Build Photos
+
+![Early Chassis](images/chassis-early.jpg)
+
+**Caption:** Early prototype of the robot chassis showing the initial layout before the wheel and motor arrangement were modified.
+
+![Servo Mount](images/servo-mount.jpg)
+
+**Caption:** Servo motor mounted using screws and brackets. The mount is fixed because the arm operates within a predetermined range of motion.
+
+### Changes During Construction
+
+Several changes were made during assembly:
+
+* Wheels were moved forward to better accommodate motor placement.
+* White motors originally selected for the design failed despite soldering and repair attempts.
+* All motors were replaced with yellow geared motors for improved reliability.
+
+---
+
+## Wiring
+
+### Wiring Strategy
+
+*Add Nila's contribution here.*
+
+Wires were routed along the chassis frame and secured to prevent movement during operation.
+
+Key considerations:
+
+* Separation of motor power wiring from sensor wiring
+* Minimizing loose connections
+* Preventing cables from interfering with moving parts
+
+### Wiring Photos
+
+![Early Wiring](images/wiring-early.jpg)
+
+**Caption:** Early wiring stage showing partially completed electronics and sensor integration.
+
+![Final Wiring](images/wiring-final.jpg)
+
+**Caption:** Final wiring layout showing secured cables and completed electrical connections.
+
+---
+
+## Decisions Made During the Build
+
+*Add Chloe's contribution here.*
+
+### Decision 1: Added Additional Motors
+
+Testing revealed that increased drive power improved pushing force and maneuverability.
+
+### Decision 2: Added Ultrasonic Sensor
+
+Opponent detection significantly improved autonomous behavior and reduced time spent searching.
+
+---
+
+# Calibration
+
+Edge detection thresholds were calibrated using measurements collected directly from the competition arena.
+
+## RC Timing Measurements
+
+| Surface            | Mean RC Time (s) | Range / Std Dev | Samples |
+| ------------------ | ---------------- | --------------- | ------- |
+| Arena Surface      |                  |                 |         |
+| Boundary Line      |                  |                 |         |
+| Comparison Surface |                  |                 |         |
+
+### Selected Threshold
+
+```python
+EDGE_THRESHOLD = ______
+```
+
+Explain:
+
+* How the threshold was selected
+* Safety margin above the arena reading
+* Safety margin below the boundary reading
+
+### Calibration Photos
+
+![Arena Calibration](images/calibration-arena.jpg)
+
+**Caption:** Robot positioned on the competition ring during calibration.
+
+![Calibration Output](images/calibration-terminal.png)
+
+**Caption:** Terminal output showing RC timing measurements used to determine the threshold.
+
+---
+
+# Code
+
+## Project Structure
+
+```text
+src/
+├── main.py              — Main robot control loop
+├── motors.py            — Motor control functions
+├── sensors.py           — Edge detection sensors
+├── ultrasonic.py        — Distance sensing
+├── servo.py             — Claw control
+```
+
+---
+
+## Edge Detection
+
+```python
+# Insert edge detection function
+```
+
+### Explanation
+
+Explain:
+
+* How edge detection works
+* Why the threshold value was selected
+* Why front and rear sensors use different responses
+
+---
+
+## Main Loop
+
+```python
+# Insert main loop snippet
+```
+
+### Explanation
+
+Explain:
+
+* State machine logic
+* Opponent detection behavior
+* Edge avoidance behavior
+* Attack logic
+
+---
+
+## GPIO Cleanup
+
+```python
+try:
+    main()
+finally:
+    GPIO.cleanup()
+```
+
+### Explanation
+
+The `finally` block guarantees cleanup regardless of how the program exits.
+
+Without cleanup:
+
+* GPIO pins may remain active
+* Motors could continue receiving signals
+* Future programs may encounter GPIO conflicts
+
+Unlike `except KeyboardInterrupt`, `finally` also executes when unexpected errors occur.
+
+### Code Demonstration
+
+![Terminal Output](images/code-running.png)
+
+**Caption:** Robot software running during pre-competition testing.
+
+---
+
+# Competition & Reflection
+
+## Results
+
+| Round   | Placement | Bonus Points | Round Total |
+| ------- | --------- | ------------ | ----------- |
+| Round 1 | 2         | 0            | 2           |
+| Round 2 | 3         | 2            | 5           |
+| Round 3 | 2         | 2            | 4           |
+| Round 4 | 0         | 0            | 0           |
+| Round 5 | 1         | 0            | 1           |
+| Round 6 | 2         | 0            | 2           |
+
+### Competition Photo
+
+![Competition Round](images/competition.jpg)
+
+**Caption:** Robot competing during a live round.
+
+---
+
+## What Worked
+
+The start button functioned reliably throughout competition and never caused issues during operation.
+
+Additional successful features included:
+
+* Stable driving performance
+* Effective claw mechanism
+* Reliable motor replacement decision
+
+---
+
+## What Failed
+
+### Edge Detection Threshold
+
+A last-minute hardware change altered sensor readings, making the calibrated threshold less reliable.
+
+### Rear Sensor Issues
+
+The rear sensor occasionally failed to detect the boundary consistently, reducing escape reliability.
+
+### Power Limitations
+
+The robot occasionally lacked sufficient power when attempting to push heavier opponents.
+
+### Development Timeline
+
+The final code was completed very late, leaving insufficient time for testing and optimization.
+
+---
+
+## Next Iteration
+
+### Improvement 1: More Development Time
+
+Complete software earlier to allow extensive testing and debugging.
+
+### Improvement 2: Improved Power System
+
+Use a higher-current battery and optimize motor power delivery.
+
+### Improvement 3: Verify Dimensions Earlier
+
+Check size requirements throughout construction to prevent compliance issues.
+
+### Improvement 4: Recalibrate After Hardware Changes
+
+Any sensor or component change should be followed by a full recalibration procedure.
+
+### Improvement 5: Improve Rear Sensor Reliability
+
+Redesign sensor mounting and perform additional testing to improve consistency.
