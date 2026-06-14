@@ -1,6 +1,5 @@
 # Sumo Robot: BotZilla
 
-**Team Winners**
 Hamida Firoz • Nila Mathivannan • Chloe Chow
 
 ---
@@ -119,21 +118,21 @@ The final design combines aggressive pushing with a servo-powered flipping arm. 
 ### Build Photos
 
 ![Early Chassis]
-
-
 **Caption:** Orginally, we used the chasis provided, but soon realised that we would have to go bigger to fit 4 motors.
-Final Chasis: <img width="485" height="193" alt="image" src="https://github.com/user-attachments/assets/7eb8c4e1-4ee1-4ef6-8563-a95d0f7e14b4" />
+
+![Final Chasis]
+**Caption:** We extended the base to 7.5 inches by 8.5 inches to include two photoresistor (front/back), and two motors on each side in order to have enough "ramming" power.
 
 ![Servo Mount](images/servo-mount.jpg)
 
-**Caption:** Servo motor mounted using screws and brackets. The mount is fixed because the arm operates within a predetermined range of motion.
+**Caption:** Servo motor mounted using zipties only. The mount is fixed because there are holes within the chasis to secure the motors and zipties as one.
 
 ### Changes During Construction
 
 Several changes were made during assembly:
 
-* Wheels were moved forward to better accommodate motor placement.
-* White motors originally selected for the design failed despite soldering and repair attempts.
+* Wheels were moved further back to better accommodate both photo resistors.
+* White motors originally selected for the design failed despite soldering and repair attempts (yellow ones used).
 * All motors were replaced with yellow geared motors for improved reliability.
 
 ---
@@ -142,31 +141,29 @@ Several changes were made during assembly:
 
 ### Wiring Strategy
 
-*Add Nila's contribution here.*
-
-Wires were routed along the chassis frame and secured to prevent movement during operation.
+Wires were cut tosize and stripped to make them flush to the breadboard.
 
 Key considerations:
 
-* Separation of motor power wiring from sensor wiring
-* Minimizing loose connections
-* Preventing cables from interfering with moving parts
+* Separation of motor power wiring from GPIO pin wiring using a 4 AA battery holder pack
+* Minimizing loose connections by cutting wires to size
+* Preventing cables from interfering with moving parts by ziptying hanging cables to the breadboard when necessary
 
 ### Wiring Photos
 
-![Early Wiring](images/wiring-early.jpg)
+![Early Wiring]
+<img width="525" height="448" alt="image" src="https://github.com/user-attachments/assets/4b55f1c2-0b9b-457f-bab4-13947f2b58ba" />
 
 **Caption:** Early wiring stage showing partially completed electronics and sensor integration.
 
-![Final Wiring](images/wiring-final.jpg)
+![Final Wiring]
+<img width="486" height="196" alt="image" src="https://github.com/user-attachments/assets/05a6ccb4-a30b-4767-aa5c-732e4aa0d4b5" />
 
 **Caption:** Final wiring layout showing secured cables and completed electrical connections.
 
 ---
 
 ## Decisions Made During the Build
-
-*Add Chloe's contribution here.*
 
 ### Decision 1: Added Additional Motors
 
@@ -176,6 +173,10 @@ Testing revealed that increased drive power improved pushing force and maneuvera
 
 Opponent detection significantly improved autonomous behavior and reduced time spent searching.
 
+### Decision 2: Added Photoresistor Sensor on the back
+
+If pushed by another robot, could easily find its way away from the black line, due to photoresitors on both the back and front.
+
 ---
 
 # Calibration
@@ -184,23 +185,18 @@ Edge detection thresholds were calibrated using measurements collected directly 
 
 ## RC Timing Measurements
 
-| Surface            | Mean RC Time (s) | Range / Std Dev | Samples |
-| ------------------ | ---------------- | --------------- | ------- |
-| Arena Surface      |                  |                 |         |
-| Boundary Line      |                  |                 |         |
-| Comparison Surface |                  |                 |         |
+| Surface | Mean RC Time | Range / Std Dev | Samples |
+|----------|----------|----------|----------|
+| Arena Surface (White) | 1150 | ±120 | 20 |
+| Boundary Line (Black) | 3850 | ±250 | 20 |
+| Comparison Surface (Wood Table) | 2250 | ±180 | 20 |
 
 ### Selected Threshold
 
-```python
-EDGE_THRESHOLD = ______
-```
+**Chosen threshold:** `FRONT_THRESHOLD = 2500`
+`BACK_THRESHOLD = 2500`
 
-Explain:
-
-* How the threshold was selected
-* Safety margin above the arena reading
-* Safety margin below the boundary reading
+The white arena surface consistently produced readings around 1150, while the black boundary line produced readings around 3850. A threshold of 2500 was selected because it lies approximately halfway between the two averages and provides a sufficient margin to distinguish the boundary from the arena surface. The comparison surface produced values between the two extremes, confirming that the chosen threshold reliably separates black and white surfaces under normal lighting conditions.
 
 ### Calibration Photos
 
@@ -214,17 +210,11 @@ Explain:
 
 ---
 
-# Code
-
 ## Project Structure
 
 ```text
 src/
-├── main.py              — Main robot control loop
-├── motors.py            — Motor control functions
-├── sensors.py           — Edge detection sensors
-├── ultrasonic.py        — Distance sensing
-├── servo.py             — Claw control
+├── main.py     — Controls sensors, motors, and robot behaviour
 ```
 
 ---
@@ -232,62 +222,89 @@ src/
 ## Edge Detection
 
 ```python
-# Insert edge detection function
+def avoid_line(s1, s2):
+    set_backward()
+    drive(BACKUP_SPEED, BACKUP_SPEED)
+    time.sleep(0.5)
+
+    if s1 > LINE_THRESHOLD and s2 <= LINE_THRESHOLD:
+        set_turn_right()
+    elif s2 > LINE_THRESHOLD and s1 <= LINE_THRESHOLD:
+        set_turn_left()
+
+    drive(50, 50)
+    time.sleep(0.5)
 ```
 
-### Explanation
+**Explanation:**
+This function prevents the robot from driving out of the ring. When one of the line sensors detects the black boundary, the robot backs up and turns away from the edge. We chose to back up and turn rather than just stop because it gets the robot back into the arena faster and lets it continue searching for opponents.
 
-Explain:
+---
 
-* How edge detection works
-* Why the threshold value was selected
-* Why front and rear sensors use different responses
+## Opponent Detection
+
+```python
+def charge():
+    set_forward()
+    drive(SPEED_FULL, SPEED_FULL)
+
+    while True:
+        s1, s2 = read_line_sensors()
+
+        if s1 > LINE_THRESHOLD or s2 > LINE_THRESHOLD:
+            avoid_line(s1, s2)
+            return
+
+        dist = ultrasonic_distance_cm()
+
+        if dist > CHARGE_DISTANCE_CM * 1.5:
+            stop_motors()
+            return
+```
+
+**Explanation:**
+The ultrasonic sensor is used to find opponents. If an object is detected within the set distance, the robot charges forward at full speed. The line sensors are still checked while charging so the robot doesn't accidentally drive out of the arena while attacking.
 
 ---
 
 ## Main Loop
 
 ```python
-# Insert main loop snippet
+while True:
+    dist = ultrasonic_distance_cm()
+
+    if dist < CHARGE_DISTANCE_CM:
+        charge()
+        continue
+
+    s1, s2 = read_line_sensors()
+
+    if s1 > LINE_THRESHOLD or s2 > LINE_THRESHOLD:
+        avoid_line(s1, s2)
+        continue
+
+    wander_step(wiggle_right)
 ```
 
-### Explanation
-
-Explain:
-
-* State machine logic
-* Opponent detection behavior
-* Edge avoidance behavior
-* Attack logic
+**Explanation:**
+The main loop controls the robot's behaviour. First it checks for an opponent. If one is detected, it charges. If no opponent is found, it checks the line sensors. If the boundary is detected, it performs an avoidance manoeuvre. Otherwise, it continues wandering around the arena looking for opponents.
 
 ---
 
 ## GPIO Cleanup
 
 ```python
-try:
-    main()
 finally:
+    stop_motors()
+
+    for pwm in [pwm_a, pwm_b, pwm_c, pwm_d]:
+        pwm.stop()
+
     GPIO.cleanup()
 ```
 
-### Explanation
-
-The `finally` block guarantees cleanup regardless of how the program exits.
-
-Without cleanup:
-
-* GPIO pins may remain active
-* Motors could continue receiving signals
-* Future programs may encounter GPIO conflicts
-
-Unlike `except KeyboardInterrupt`, `finally` also executes when unexpected errors occur.
-
-### Code Demonstration
-
-![Terminal Output](images/code-running.png)
-
-**Caption:** Robot software running during pre-competition testing.
+**Explanation:**
+This code runs when the program ends. It stops all motors and resets the GPIO pins. Without cleanup, the pins could stay active and cause problems the next time the program is run. The `finally` block is used because it runs even if the program crashes or is interrupted unexpectedly.
 
 ---
 
@@ -308,7 +325,7 @@ Unlike `except KeyboardInterrupt`, `finally` also executes when unexpected error
 
 ![Competition Round](images/competition.jpg)
 
-**Caption:** Robot competing during a live round.
+**Caption:** Robot was pushing a competitor out of the ring.
 
 ---
 
@@ -319,8 +336,8 @@ The start button functioned reliably throughout competition and never caused iss
 Additional successful features included:
 
 * Stable driving performance
-* Effective claw mechanism
-* Reliable motor replacement decision
+* Effective pushing action
+* Correct wandering pattern followed
 
 ---
 
@@ -328,19 +345,15 @@ Additional successful features included:
 
 ### Edge Detection Threshold
 
-A last-minute hardware change altered sensor readings, making the calibrated threshold less reliable.
-
-### Rear Sensor Issues
-
-The rear sensor occasionally failed to detect the boundary consistently, reducing escape reliability.
+A last-minute physical changes, such as removing the front 3D printed piece, changed sensor readings making the robots go ully out of the ring in one round.
 
 ### Power Limitations
 
-The robot occasionally lacked sufficient power when attempting to push heavier opponents.
+The robot occasionally lacked sufficient power when attempting to push heavier opponents or when getting stuck on the edge of the ring.
 
 ### Development Timeline
 
-The final code was completed very late, leaving insufficient time for testing and optimization.
+The final code did not have enough time to be tested and optimised due to hardware problems/readings with the photoresistors.
 
 ---
 
